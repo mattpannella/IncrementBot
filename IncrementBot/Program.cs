@@ -90,6 +90,15 @@ namespace BasicBot
         // reading over the Commands Framework sample.
         private async Task MessageReceivedAsync(SocketMessage message)
         {
+            //allow commands without trying to count
+            //react to missed numbers, and same users. message to take turns
+            //top 10 only, sorted. single message
+            //i!help
+            //only one channel. admin needs to initialize count in channel to become counting channel
+            //save count and channel from admin command to external file and initialize
+
+            //stretch goal: multi server
+
             // The bot should never respond to itself. dont respond if same user twice in a row
             if (message.Author.Id == _client.CurrentUser.Id || message.Author.Id == mostRecentUser) {
                 return;
