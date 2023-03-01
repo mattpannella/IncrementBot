@@ -167,12 +167,12 @@ namespace IncrementBot
                         var user = _client.GetUserAsync(key).Result;
                         var Username = user.Username + "#" + user.Discriminator;
                         await message.Channel.SendMessageAsync(Username + ": " + _state[guild].userTotals[key]);
-                        await SaveState();
                     }
                     break;
                 case "init":
                     _state[guild].channel = message.Channel.Name;
                     await message.Channel.SendMessageAsync("Channel set");
+                    await SaveState();
                     break;
                 default:
                     await message.Channel.SendMessageAsync("i dont know what that means");
