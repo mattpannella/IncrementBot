@@ -4,7 +4,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace BasicBot
+namespace IncrementBot
 {
     // This is a minimal, bare-bones example of using Discord.Net.
     //
@@ -23,12 +23,7 @@ namespace BasicBot
         // Non-static readonly fields can only be assigned in a constructor.
         // If you want to assign it elsewhere, consider removing the readonly keyword.
         private readonly DiscordSocketClient _client;
-        private Dictionary<ulong, int> userTotals;
-        private ulong mostRecentUser;
-
-        private int count = 0;
-
-        private string channel = "";
+        private Dictionary<string, IncremementState> _state;
 
         // Discord.Net heavily utilizes TAP for async, so we create
         // an asynchronous context from the beginning.
@@ -40,7 +35,7 @@ namespace BasicBot
 
         public Program()
         {
-            userTotals = new Dictionary<ulong, int>();
+            _state = new Dictionary<string, IncremementState>();
 
             // Config used by DiscordSocketClient
             // Define intents for the client
@@ -91,6 +86,10 @@ namespace BasicBot
         // reading over the Commands Framework sample.
         private async Task MessageReceivedAsync(SocketMessage message)
         {
+            var chnl = message.Channel as SocketGuildChannel;
+            var guild = chnl.Guild.Id;
+            _state.TryAdd(guild, new IncremementState());
+
             if (message.Author.Id == _client.CurrentUser.Id) {
                 return;
             }
@@ -110,7 +109,7 @@ namespace BasicBot
             //stretch goal: multi server
 
             // The bot should never respond to itself. dont respond if same user twice in a row
-            if (message.Channel.Name != channel) {
+            if (message.Channel.Name != _state[guild].channel) {
                 return;
             }
 
@@ -126,43 +125,47 @@ namespace BasicBot
 
         private async Task ParseNumber(SocketMessage message, int number)
         {
-            if (message.Author.Id == mostRecentUser) {
+            var chnl = message.Channel as SocketGuildChannel;
+            var guild = chnl.Guild.Id;
+            if (message.Author.Id == _state[guild].mostRecentUser) {
                 await message.AddReactionAsync(new Emoji("❌"));
                 await message.Channel.SendMessageAsync("It's some else's turn.");
             } 
-            else if(number == (count+1)) {
-                count++;
+            else if(number == (_state[guild].count+1)) {
+                _state[guild].count++;
                 await message.AddReactionAsync(new Emoji("✅"));
                 ulong userid = message.Author.Id;
-                mostRecentUser = message.Author.Id;
-                if(!userTotals.ContainsKey(userid)){
-                    userTotals.Add(userid, 1);
+                _state[guild].mostRecentUser = message.Author.Id;
+                if(!_state[guild].userTotals.ContainsKey(userid)){
+                    _state[guild].userTotals.Add(userid, 1);
                 } else {
-                    userTotals[userid]++;
+                    _state[guild].userTotals[userid]++;
                 }
             } else {
                 //otherwise send the fail  message
-                await message.Channel.SendMessageAsync(GetRandomIncorrectResponse(count));
+                await message.Channel.SendMessageAsync(GetRandomIncorrectResponse(_state[guild].count));
                 await message.AddReactionAsync(new Emoji("❌"));
             }
         }
 
         private async Task ParseCommand(SocketMessage message)
         {
+            var chnl = message.Channel as SocketGuildChannel;
+            var guild = chnl.Guild.Id;
             string command = message.Content.Split("i!")[1];
-            if(channel == "" && command != "init") {
+            if(_state[guild].channel == "" && command != "init") {
                 return;
             }
             switch(command) {
                 case "leaderboard":
-                    foreach (ulong key in userTotals.Keys) {
+                    foreach (ulong key in _state[guild].userTotals.Keys) {
                         var user = _client.GetUserAsync(key).Result;
                         var Username = user.Username + "#" + user.Discriminator;
-                        await message.Channel.SendMessageAsync("User " + Username + ": " + userTotals[key]);
+                        await message.Channel.SendMessageAsync(Username + ": " + _state[guild].userTotals[key]);
                     }
                     break;
                 case "init":
-                    channel = message.Channel.Name;
+                    _state[guild].channel = message.Channel.Name;
                     await message.Channel.SendMessageAsync("Channel set");
                     break;
                 default:
