@@ -1,8 +1,6 @@
 using Discord;
 using Discord.WebSocket;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Text.Json;
 
 namespace IncrementBot
 {
@@ -35,7 +33,13 @@ namespace IncrementBot
 
         public Program()
         {
-            _state = new Dictionary<ulong, IncremementState>();
+            string file = Environment.GetEnvironmentVariable("STATE");
+            if(File.Exists(file)) {
+                string json = File.ReadAllText(file);
+                _state = JsonSerializer.Deserialize<Dictionary<ulong, IncremementState>>(json);
+            } else {
+                _state = new Dictionary<ulong, IncremementState>();
+            }
 
             // Config used by DiscordSocketClient
             // Define intents for the client
@@ -141,6 +145,7 @@ namespace IncrementBot
                 } else {
                     _state[guild].userTotals[userid]++;
                 }
+                await SaveState();
             } else {
                 //otherwise send the fail  message
                 await message.Channel.SendMessageAsync(GetRandomIncorrectResponse(_state[guild].count));
@@ -162,6 +167,7 @@ namespace IncrementBot
                         var user = _client.GetUserAsync(key).Result;
                         var Username = user.Username + "#" + user.Discriminator;
                         await message.Channel.SendMessageAsync(Username + ": " + _state[guild].userTotals[key]);
+                        await SaveState();
                     }
                     break;
                 case "init":
@@ -210,6 +216,16 @@ namespace IncrementBot
         private bool HasManageServerPermission(SocketGuildUser user)
         {
             return user.GuildPermissions.ManageGuild;
+        }
+
+        private async Task SaveState()
+        {
+            string file = Environment.GetEnvironmentVariable("STATE");
+            if (file == null) {
+                return;
+            }
+            string json = JsonSerializer.Serialize(_state);
+            File.WriteAllText(file, json);
         }
     }
 }
