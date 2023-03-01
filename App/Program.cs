@@ -1,10 +1,8 @@
 using Discord;
 using Discord.WebSocket;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Text.Json;
 
-namespace BasicBot
+namespace IncrementBot
 {
     // This is a minimal, bare-bones example of using Discord.Net.
     //
@@ -23,11 +21,7 @@ namespace BasicBot
         // Non-static readonly fields can only be assigned in a constructor.
         // If you want to assign it elsewhere, consider removing the readonly keyword.
         private readonly DiscordSocketClient _client;
-        private string token = "";
-        private Dictionary<ulong, int> userTotals;
-        private ulong mostRecentUser;
-
-        private int count = 0;
+        private Dictionary<ulong, IncremementState> _state;
 
         // Discord.Net heavily utilizes TAP for async, so we create
         // an asynchronous context from the beginning.
@@ -39,7 +33,13 @@ namespace BasicBot
 
         public Program()
         {
-            userTotals = new Dictionary<ulong, int>();
+            string file = Environment.GetEnvironmentVariable("STATE");
+            if(File.Exists(file)) {
+                string json = File.ReadAllText(file);
+                _state = JsonSerializer.Deserialize<Dictionary<ulong, IncremementState>>(json);
+            } else {
+                _state = new Dictionary<ulong, IncremementState>();
+            }
 
             // Config used by DiscordSocketClient
             // Define intents for the client
@@ -62,7 +62,7 @@ namespace BasicBot
         public async Task MainAsync()
         {
             // Tokens should be considered secret data, and never hard-coded.
-            await _client.LoginAsync(TokenType.Bot, token);
+            await _client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("TOKEN"));
             // Different approaches to making your token a secret is by putting them in local .json, .yaml, .xml or .txt files, then reading them on startup.
 
             await _client.StartAsync();
@@ -90,19 +90,31 @@ namespace BasicBot
         // reading over the Commands Framework sample.
         private async Task MessageReceivedAsync(SocketMessage message)
         {
-            // The bot should never respond to itself. dont respond if same user twice in a row
-            if (message.Author.Id == _client.CurrentUser.Id || message.Author.Id == mostRecentUser) {
+            var chnl = message.Channel as SocketGuildChannel;
+            var guild = chnl.Guild.Id;
+            _state.TryAdd(guild, new IncremementState());
+
+            if (message.Author.Id == _client.CurrentUser.Id) {
                 return;
             }
 
             //check for leaderboard command. return afterwards
-            if (message.Content == "i!leaderboard") {
-                foreach (ulong key in userTotals.Keys) {
-                    var user = _client.GetUserAsync(key).Result;
-                    var Username = user.Username + "#" + user.Discriminator;
-                    await message.Channel.SendMessageAsync("User " + Username + ": " + userTotals[key]);
-                    return;
-                }
+            if (message.Content.StartsWith("i!")) {
+                await ParseCommand(message);
+                return;
+            }
+            //allow commands without trying to count
+            //react to missed numbers, and same users. message to take turns
+            //top 10 only, sorted. single message
+            //i!help
+            //only one channel. admin needs to initialize count in channel to become counting channel
+            //save count and channel from admin command to external file and initialize
+
+            //stretch goal: multi server
+
+            // The bot should never respond to itself. dont respond if same user twice in a row
+            if (message.Channel.Name != _state[guild].channel) {
+                return;
             }
 
             //number will contain the integer from the chat, if its a int
@@ -110,20 +122,64 @@ namespace BasicBot
             bool check = int.TryParse(message.Content, out number);
             
             //if it was an int and its previous+1
-            if(check != false && number == (count+1)) {
-                count++;
+            if(check != false) {
+                await ParseNumber(message, number);
+            }
+        }
+
+        private async Task ParseNumber(SocketMessage message, int number)
+        {
+            var chnl = message.Channel as SocketGuildChannel;
+            var guild = chnl.Guild.Id;
+            if (message.Author.Id == _state[guild].mostRecentUser) {
+                await message.AddReactionAsync(new Emoji("❌"));
+                await message.Channel.SendMessageAsync("It's some else's turn.");
+            } 
+            else if(number == (_state[guild].count+1)) {
+                _state[guild].count++;
                 await message.AddReactionAsync(new Emoji("✅"));
                 ulong userid = message.Author.Id;
-                mostRecentUser = message.Author.Id;
-                if(!userTotals.ContainsKey(userid)){
-                    userTotals.Add(userid, 1);
+                _state[guild].mostRecentUser = message.Author.Id;
+                if(!_state[guild].userTotals.ContainsKey(userid)){
+                    _state[guild].userTotals.Add(userid, 1);
                 } else {
-                    userTotals[userid]++;
+                    _state[guild].userTotals[userid]++;
                 }
+                await SaveState();
             } else {
                 //otherwise send the fail  message
-                await message.Channel.SendMessageAsync(GetRandomIncorrectResponse(count));
+                await message.Channel.SendMessageAsync(GetRandomIncorrectResponse(_state[guild].count));
                 await message.AddReactionAsync(new Emoji("❌"));
+            }
+        }
+
+        private async Task ParseCommand(SocketMessage message)
+        {
+            var chnl = message.Channel as SocketGuildChannel;
+            var guild = chnl.Guild.Id;
+            string command = message.Content.Split("i!")[1];
+            if(_state[guild].channel == "" && command != "init") {
+                return;
+            }
+            switch(command) {
+                case "leaderboard":
+                    foreach (ulong key in _state[guild].userTotals.Keys) {
+                        var user = _client.GetUserAsync(key).Result;
+                        var Username = user.Username + "#" + user.Discriminator;
+                        await message.Channel.SendMessageAsync(Username + ": " + _state[guild].userTotals[key]);
+                    }
+                    break;
+                case "init":
+                    _state[guild].channel = message.Channel.Name;
+                    await message.Channel.SendMessageAsync("Channel set");
+                    await SaveState();
+                    break;
+                case "help":
+                    await message.Channel.SendMessageAsync("figure it out yourself");
+                    break;
+                default:
+                    await message.Channel.SendMessageAsync("i dont know what that means");
+                    break;
             }
         }
 
@@ -158,6 +214,21 @@ namespace BasicBot
                 $"Nice try, but the next number is {expectedCount + 1}"
             };
             return incorrectResponses[new Random().Next(incorrectResponses.Length)];
+        }
+
+        private bool HasManageServerPermission(SocketGuildUser user)
+        {
+            return user.GuildPermissions.ManageGuild;
+        }
+
+        private async Task SaveState()
+        {
+            string file = Environment.GetEnvironmentVariable("STATE");
+            if (file == null) {
+                return;
+            }
+            string json = JsonSerializer.Serialize(_state);
+            File.WriteAllText(file, json);
         }
     }
 }
