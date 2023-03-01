@@ -174,6 +174,9 @@ namespace IncrementBot
                     await message.Channel.SendMessageAsync("Channel set");
                     await SaveState();
                     break;
+                case "help":
+                    await message.Channel.SendMessageAsync("figure it out yourself");
+                    break;
                 default:
                     await message.Channel.SendMessageAsync("i dont know what that means");
                     break;
