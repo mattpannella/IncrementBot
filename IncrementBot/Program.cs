@@ -23,7 +23,7 @@ namespace BasicBot
         // Non-static readonly fields can only be assigned in a constructor.
         // If you want to assign it elsewhere, consider removing the readonly keyword.
         private readonly DiscordSocketClient _client;
-        private string token = "MTA4MDE5MDUxODIwMzUzNTM4MA.Gm9_oq.ccyhrme_6hLd0XHZ7W74iMn7SNAzZ2-WTd2XN8";
+        private string token = "";
         private Dictionary<ulong, int> userTotals;
         private ulong mostRecentUser;
 
