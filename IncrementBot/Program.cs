@@ -23,7 +23,7 @@ namespace IncrementBot
         // Non-static readonly fields can only be assigned in a constructor.
         // If you want to assign it elsewhere, consider removing the readonly keyword.
         private readonly DiscordSocketClient _client;
-        private Dictionary<string, IncremementState> _state;
+        private Dictionary<ulong, IncremementState> _state;
 
         // Discord.Net heavily utilizes TAP for async, so we create
         // an asynchronous context from the beginning.
@@ -35,7 +35,7 @@ namespace IncrementBot
 
         public Program()
         {
-            _state = new Dictionary<string, IncremementState>();
+            _state = new Dictionary<ulong, IncremementState>();
 
             // Config used by DiscordSocketClient
             // Define intents for the client
