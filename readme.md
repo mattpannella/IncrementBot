@@ -2,7 +2,7 @@ docker build -t inc-bot-image -f Dockerfile .
 
 docker create --name inc-bot inc-bot-image
 
-docker start inc-bot
+docker-compose up
 
 add the following values to your .env file:
 

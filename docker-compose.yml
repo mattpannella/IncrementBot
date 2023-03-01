@@ -1,0 +1,5 @@
+services:
+  inc-bot:
+    image: inc-bot-image
+    env_file
+      - .env
