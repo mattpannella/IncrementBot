@@ -162,8 +162,8 @@ namespace IncrementBot
                 if(_state[guild].count == 10 || _state[guild].count % 100 == 0)
                 {
                     await message.Channel.SendMessageAsync("An excellent milestone, let's see the leaderboard!");
-                    string leaderboard = await GetLeaderBoard(guild);
-                    await message.Channel.SendMessageAsync(leaderboard);
+                    Embed leaderboard = await GetLeaderBoard(guild);
+                    await message.Channel.SendMessageAsync("", false, leaderboard);
                 }
 
                 await SaveState();
@@ -186,33 +186,33 @@ namespace IncrementBot
             }
             switch(command) {
                 case "leaderboard":
-                        EmbedBuilder builder = await BuildLeaderBoard(guild);
-                        await message.Channel.SendMessageAsync("", false, builder.Build());
+                        Embed leaderboard = await GetLeaderBoard(guild);
+                        await message.Channel.SendMessageAsync("", false, leaderboard);
                     break;
                 case "increment":
                     var u = message.Author as SocketGuildUser;
                     if(HasManageServerPermission(u)) {
                         _state[guild].channel = message.Channel.Name;
-                        await message.Channel.SendMessageAsync("Channel set");
+                        await message.Channel.SendMessageAsync("", false, await BuildMessage("Channel set"));
                         await SaveState();
                     } else {
                         await message.Channel.SendMessageAsync("i dont think so");
                     }
                     break;
                 case "help":
-                    await message.Channel.SendMessageAsync("Increase together forever! Players take turns typing the next number in sequence.\r\nCommands:\r\ni!help - Read this text.\r\ni!increment - An admin must type this in the desired channel- that will become the Incrementing channel!\r\ni!leaderboard - See the top ten contributors to the increasing on this server.\r\ni!global - See the global total of increasing.\r\n\r\nIf you like this Discord game, check out the VR version, \"Increment\"!");
+                    await message.Channel.SendMessageAsync("", false, await BuildMessage("Increase together forever! Players take turns typing the next number in sequence.\r\nCommands:\r\ni!help - Read this text.\r\ni!increment - An admin must type this in the desired channel- that will become the Incrementing channel!\r\ni!leaderboard - See the top ten contributors to the increasing on this server.\r\ni!global - See the global total of increasing.\r\n\r\nIf you like this Discord game, check out the VR version, \"Increment\"!", "Help"));
                     break;
                 case "global":
                     int count = await GetGlobalCount();
-                    await message.Channel.SendMessageAsync($"There are increasers everywhere! They have increased globally by {count}");
+                    await message.Channel.SendMessageAsync("", false, await BuildMessage($"There are increasers everywhere! They have increased globally by {count}", "Global Total"));
                     break;
                 default:
-                    await message.Channel.SendMessageAsync("Invalid command.");
+                    await message.Channel.SendMessageAsync("", false, await BuildMessage("Invalid command."));
                     break;
             }
         }
 
-        private async Task<EmbedBuilder> BuildLeaderBoard(ulong guild)
+        private async Task<Embed> GetLeaderBoard(ulong guild)
         {
             await SortLeaderboard(guild);
             EmbedBuilder builder = new EmbedBuilder();
@@ -228,10 +228,37 @@ namespace IncrementBot
                 count++;
             }
             builder.Description = list.ToString();
-            builder.WithUrl("https://www.incrementvr.com/");
-            builder.WithThumbnailUrl(INC_LOGO);
+            //builder.WithUrl("https://www.incrementvr.com/");
+            //builder.WithThumbnailUrl(INC_LOGO);
             builder.WithColor(INC_COLOR);
-            return builder;
+            return builder.Build();
+        }
+
+        private async Task<Embed> BuildMessage(string message, string? title = null)
+        {
+            return await BuildMessage(new string[] { message }, title);
+        }
+
+        private async Task<Embed> BuildMessage(string[] messages, string? title = null)
+        {
+            EmbedBuilder builder = new EmbedBuilder();
+            if(title != null) {
+                builder.WithTitle(title);
+            } 
+            if(title == null && messages.Length == 1) {
+                builder.WithTitle(messages[0]);
+            } else {
+                StringBuilder list = new StringBuilder();
+                foreach (string m in messages) {
+                    list.AppendLine(m);
+                }
+                builder.Description = list.ToString();
+            }
+
+            //builder.WithThumbnailUrl(INC_LOGO);
+            builder.WithColor(INC_COLOR);
+
+            return builder.Build();
         }
 
         private async Task<int> GetGlobalCount()
@@ -249,22 +276,6 @@ namespace IncrementBot
             var topTenSorted = _state[guild].userTotals.OrderByDescending(u => u.Value).Take(10)
                      .ToDictionary(u => u.Key, u => u.Value);
             _state[guild].userTotals = topTenSorted;
-        }
-
-        private async Task<string> GetLeaderBoard(ulong guild)
-        {
-            await SortLeaderboard(guild);
-            string output = "Top Ten Incrementalists\r\n";
-            int count = 1;
-            foreach (var user in _state[guild].userTotals)
-            {
-                var discordUser = await _client.GetUserAsync(user.Key);
-                var username = discordUser.Username + "#" + discordUser.Discriminator;
-                output += $"#{count} {username}: {user.Value}\r\n";
-                count++;
-            }
-
-            return output;
         }
 
         // For better functionality & a more developer-friendly approach to handling any kind of interaction, refer to:
