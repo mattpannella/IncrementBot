@@ -1,5 +1,6 @@
 using Discord;
 using Discord.WebSocket;
+using System.Text;
 using System.Text.Json;
 
 namespace IncrementBot
@@ -23,6 +24,11 @@ namespace IncrementBot
         private readonly DiscordSocketClient _client;
         private Dictionary<ulong, IncremementState> _state;
 
+        private const string STATE_FILE = "state.json";
+
+        private static Color INC_COLOR = new Color(1, 255, 253);
+        private static string INC_LOGO = "https://images.squarespace-cdn.com/content/v1/623a01f4bb3fd3071ad90e32/7e2eb108-aec7-4356-a9ce-15d608c5e4f6/webLogo.jpg?format=500w";
+        private static string STEAM_PAGE = "https://store.steampowered.com/app/1899820/Increment/";
         // Discord.Net heavily utilizes TAP for async, so we create
         // an asynchronous context from the beginning.
         static void Main(string[] args)
@@ -33,11 +39,17 @@ namespace IncrementBot
 
         public Program()
         {
-            string file = Environment.GetEnvironmentVariable("STATE");
-            if(File.Exists(file)) {
-                string json = File.ReadAllText(file);
+            if(File.Exists(STATE_FILE)) {
+                string json = File.ReadAllText(STATE_FILE);
                 _state = JsonSerializer.Deserialize<Dictionary<ulong, IncremementState>>(json);
+                if(_state == null) {
+                    Console.WriteLine("Unable to parse state file");
+                    _state = new Dictionary<ulong, IncremementState>();
+                } else {
+                    Console.WriteLine("Loaded state");
+                }
             } else {
+                Console.WriteLine("State file not found");
                 _state = new Dictionary<ulong, IncremementState>();
             }
 
@@ -150,16 +162,8 @@ namespace IncrementBot
                 if(_state[guild].count == 10 || _state[guild].count % 100 == 0)
                 {
                     await message.Channel.SendMessageAsync("An excellent milestone, let's see the leaderboard!");
-                    
-                    //ChatGPT's attempt at top ten
-                    var sortedUserTotals = _state[guild].userTotals.OrderByDescending(u => u.Value);
-                    var topTenUsers = sortedUserTotals.Take(10);
-                    foreach (var user in topTenUsers)
-                    {
-                        var discordUser = await _client.GetUserAsync(user.Key);
-                        var username = discordUser.Username + "#" + discordUser.Discriminator;
-                        await message.Channel.SendMessageAsync($"{username}: {user.Value}");
-                    }
+                    Embed leaderboard = await GetLeaderBoard(guild);
+                    await message.Channel.SendMessageAsync("", false, leaderboard);
                 }
 
                 await SaveState();
@@ -182,40 +186,96 @@ namespace IncrementBot
             }
             switch(command) {
                 case "leaderboard":
-
-                    //ChatGPT's attempt at top ten
-                    var sortedUserTotals = _state[guild].userTotals.OrderByDescending(u => u.Value);
-                    var topTenUsers = sortedUserTotals.Take(10);
-                    foreach (var user in topTenUsers)
-                    {
-                        var discordUser = await _client.GetUserAsync(user.Key);
-                        var username = discordUser.Username + "#" + discordUser.Discriminator;
-                        await message.Channel.SendMessageAsync($"{username}: {user.Value}");
-                    }
-
-                    //Matt's full leaderboard
-                    /*
-                    foreach (ulong key in _state[guild].userTotals.Keys) {
-                        var user = _client.GetUserAsync(key).Result;
-                        var Username = user.Username + "#" + user.Discriminator;
-                        await message.Channel.SendMessageAsync(Username + ": " + _state[guild].userTotals[key]);
-                    }*/
+                        Embed leaderboard = await GetLeaderBoard(guild);
+                        await message.Channel.SendMessageAsync("", false, leaderboard);
                     break;
                 case "increment":
-                    _state[guild].channel = message.Channel.Name;
-                    await message.Channel.SendMessageAsync("Channel set");
-                    await SaveState();
+                    var u = message.Author as SocketGuildUser;
+                    if(HasManageServerPermission(u)) {
+                        _state[guild].channel = message.Channel.Name;
+                        await message.Channel.SendMessageAsync("", false, await BuildMessage("Channel set"));
+                        await SaveState();
+                    } else {
+                        await message.Channel.SendMessageAsync("i dont think so");
+                    }
                     break;
                 case "help":
-                    await message.Channel.SendMessageAsync("Increase together forever! Players take turns typing the next number in sequence.\r\nCommands:\r\ni!help - Read this text.\r\ni!increment - An admin must type this in the desired channel- that will become the Incrementing channel!\r\ni!leaderboard - See the top ten contributors to the increasing on this server.\r\ni!global - See the global total of increasing.\r\n\r\nIf you like this Discord game, check out the VR version, \"Increment\"!");
+                    await message.Channel.SendMessageAsync("", false, await BuildMessage($"Increase together forever! Players take turns typing the next number in sequence.\r\nCommands:\r\ni!help - Read this text.\r\ni!increment - An admin must type this in the desired channel- that will become the Incrementing channel!\r\ni!leaderboard - See the top ten contributors to the increasing on this server.\r\ni!global - See the global total of increasing.\r\n\r\nIf you like this Discord game, check out the VR version, [Increment]({STEAM_PAGE})!", "Help"));
                     break;
                 case "global":
-                    await message.Channel.SendMessageAsync("There are increasers everywhere! They have increased globally by" + "???");
+                    int count = await GetGlobalCount();
+                    await message.Channel.SendMessageAsync("", false, await BuildMessage($"There are increasers everywhere! They have increased globally by {count}", "Global Total"));
                     break;
                 default:
-                    await message.Channel.SendMessageAsync("Invalid command.");
+                    await message.Channel.SendMessageAsync("", false, await BuildMessage("Invalid command."));
                     break;
             }
+        }
+
+        private async Task<Embed> GetLeaderBoard(ulong guild)
+        {
+            await SortLeaderboard(guild);
+            EmbedBuilder builder = new EmbedBuilder();
+
+            builder.WithTitle("Top Ten Incrementalists");
+            StringBuilder list = new StringBuilder();
+            int count = 1;
+            foreach (var user in _state[guild].userTotals)
+            {
+                var discordUser = await _client.GetUserAsync(user.Key);
+                var username = discordUser.Username + "#" + discordUser.Discriminator;
+                list.AppendLine($"**{count}**. {username}, {user.Value}");
+                count++;
+            }
+            builder.Description = list.ToString();
+            //builder.WithUrl("https://www.incrementvr.com/");
+            //builder.WithThumbnailUrl(INC_LOGO);
+            builder.WithColor(INC_COLOR);
+            return builder.Build();
+        }
+
+        private async Task<Embed> BuildMessage(string message, string? title = null)
+        {
+            return await BuildMessage(new string[] { message }, title);
+        }
+
+        private async Task<Embed> BuildMessage(string[] messages, string? title = null)
+        {
+            EmbedBuilder builder = new EmbedBuilder();
+            if(title != null) {
+                builder.WithTitle(title);
+            } 
+            if(title == null && messages.Length == 1) {
+                builder.WithTitle(messages[0]);
+            } else {
+                StringBuilder list = new StringBuilder();
+                foreach (string m in messages) {
+                    list.AppendLine(m);
+                }
+                builder.Description = list.ToString();
+            }
+
+            //builder.WithThumbnailUrl(INC_LOGO);
+            builder.WithColor(INC_COLOR);
+
+            return builder.Build();
+        }
+
+        private async Task<int> GetGlobalCount()
+        {
+            int total = 0;
+            foreach(IncremementState i in _state.Values) {
+                total += i.count;
+            }
+
+            return total;
+        }
+
+        private async Task SortLeaderboard(ulong guild)
+        {
+            var topTenSorted = _state[guild].userTotals.OrderByDescending(u => u.Value).Take(10)
+                     .ToDictionary(u => u.Key, u => u.Value);
+            _state[guild].userTotals = topTenSorted;
         }
 
         // For better functionality & a more developer-friendly approach to handling any kind of interaction, refer to:
@@ -259,12 +319,11 @@ namespace IncrementBot
 
         private async Task SaveState()
         {
-            string file = Environment.GetEnvironmentVariable("STATE");
-            if (file == null) {
+            if (STATE_FILE == null) {
                 return;
             }
             string json = JsonSerializer.Serialize(_state);
-            File.WriteAllText(file, json);
+            File.WriteAllText(STATE_FILE, json);
         }
     }
 }
