@@ -37,6 +37,10 @@ namespace IncrementBot
             if(File.Exists(file)) {
                 string json = File.ReadAllText(file);
                 _state = JsonSerializer.Deserialize<Dictionary<ulong, IncremementState>>(json);
+                if(_state == null) {
+                    Console.WriteLine("Unable to parse state file");
+                    _state = new Dictionary<ulong, IncremementState>();
+                }
             } else {
                 _state = new Dictionary<ulong, IncremementState>();
             }
@@ -191,12 +195,23 @@ namespace IncrementBot
                     await message.Channel.SendMessageAsync("Increase together forever! Players take turns typing the next number in sequence.\r\nCommands:\r\ni!help - Read this text.\r\ni!increment - An admin must type this in the desired channel- that will become the Incrementing channel!\r\ni!leaderboard - See the top ten contributors to the increasing on this server.\r\ni!global - See the global total of increasing.\r\n\r\nIf you like this Discord game, check out the VR version, \"Increment\"!");
                     break;
                 case "global":
-                    await message.Channel.SendMessageAsync("There are increasers everywhere! They have increased globally by" + "???");
+                    int count = await GetGlobalCount();
+                    await message.Channel.SendMessageAsync($"There are increasers everywhere! They have increased globally by {count}");
                     break;
                 default:
                     await message.Channel.SendMessageAsync("Invalid command.");
                     break;
             }
+        }
+
+        private async Task<int> GetGlobalCount()
+        {
+            int total = 0;
+            foreach(IncremementState i in _state.Values) {
+                total += i.count;
+            }
+
+            return total;
         }
 
         private async Task SortLeaderboard(ulong guild)
