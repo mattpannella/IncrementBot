@@ -150,16 +150,8 @@ namespace IncrementBot
                 if(_state[guild].count == 10 || _state[guild].count % 100 == 0)
                 {
                     await message.Channel.SendMessageAsync("An excellent milestone, let's see the leaderboard!");
-                    
-                    //ChatGPT's attempt at top ten
-                    var sortedUserTotals = _state[guild].userTotals.OrderByDescending(u => u.Value);
-                    var topTenUsers = sortedUserTotals.Take(10);
-                    foreach (var user in topTenUsers)
-                    {
-                        var discordUser = await _client.GetUserAsync(user.Key);
-                        var username = discordUser.Username + "#" + discordUser.Discriminator;
-                        await message.Channel.SendMessageAsync($"{username}: {user.Value}");
-                    }
+                    string leaderboard = await GetLeaderBoard(guild);
+                    await message.Channel.SendMessageAsync(leaderboard);
                 }
 
                 await SaveState();
@@ -182,24 +174,8 @@ namespace IncrementBot
             }
             switch(command) {
                 case "leaderboard":
-
-                    //ChatGPT's attempt at top ten
-                    var sortedUserTotals = _state[guild].userTotals.OrderByDescending(u => u.Value);
-                    var topTenUsers = sortedUserTotals.Take(10);
-                    foreach (var user in topTenUsers)
-                    {
-                        var discordUser = await _client.GetUserAsync(user.Key);
-                        var username = discordUser.Username + "#" + discordUser.Discriminator;
-                        await message.Channel.SendMessageAsync($"{username}: {user.Value}");
-                    }
-
-                    //Matt's full leaderboard
-                    /*
-                    foreach (ulong key in _state[guild].userTotals.Keys) {
-                        var user = _client.GetUserAsync(key).Result;
-                        var Username = user.Username + "#" + user.Discriminator;
-                        await message.Channel.SendMessageAsync(Username + ": " + _state[guild].userTotals[key]);
-                    }*/
+                        string leaderboard = await GetLeaderBoard(guild);
+                        await message.Channel.SendMessageAsync(leaderboard);
                     break;
                 case "increment":
                     var u = message.Author as SocketGuildUser;
@@ -221,6 +197,29 @@ namespace IncrementBot
                     await message.Channel.SendMessageAsync("Invalid command.");
                     break;
             }
+        }
+
+        private async Task SortLeaderboard(ulong guild)
+        {
+            var topTenSorted = _state[guild].userTotals.OrderByDescending(u => u.Value).Take(10)
+                     .ToDictionary(u => u.Key, u => u.Value);
+            _state[guild].userTotals = topTenSorted;
+        }
+
+        private async Task<string> GetLeaderBoard(ulong guild)
+        {
+            await SortLeaderboard(guild);
+            string output = "Top Ten Incrementalists\r\n";
+            int count = 1;
+            foreach (var user in _state[guild].userTotals)
+            {
+                var discordUser = await _client.GetUserAsync(user.Key);
+                var username = discordUser.Username + "#" + discordUser.Discriminator;
+                output += $"#{count} {username}: {user.Value}\r\n";
+                count++;
+            }
+
+            return output;
         }
 
         // For better functionality & a more developer-friendly approach to handling any kind of interaction, refer to:
