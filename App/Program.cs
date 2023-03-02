@@ -24,7 +24,7 @@ namespace IncrementBot
         private readonly DiscordSocketClient _client;
         private Dictionary<ulong, IncremementState> _state;
 
-        private const string STATE_FILE = "state.json";
+        private const string STATE_FILE = "_data/state.json";
 
         private static Color INC_COLOR = new Color(1, 255, 253);
         private static string INC_LOGO = "https://images.squarespace-cdn.com/content/v1/623a01f4bb3fd3071ad90e32/7e2eb108-aec7-4356-a9ce-15d608c5e4f6/webLogo.jpg?format=500w";
