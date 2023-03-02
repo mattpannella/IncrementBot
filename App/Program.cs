@@ -28,7 +28,7 @@ namespace IncrementBot
 
         private static Color INC_COLOR = new Color(1, 255, 253);
         private static string INC_LOGO = "https://images.squarespace-cdn.com/content/v1/623a01f4bb3fd3071ad90e32/7e2eb108-aec7-4356-a9ce-15d608c5e4f6/webLogo.jpg?format=500w";
-
+        private static string STEAM_PAGE = "https://store.steampowered.com/app/1899820/Increment/";
         // Discord.Net heavily utilizes TAP for async, so we create
         // an asynchronous context from the beginning.
         static void Main(string[] args)
@@ -200,7 +200,7 @@ namespace IncrementBot
                     }
                     break;
                 case "help":
-                    await message.Channel.SendMessageAsync("", false, await BuildMessage("Increase together forever! Players take turns typing the next number in sequence.\r\nCommands:\r\ni!help - Read this text.\r\ni!increment - An admin must type this in the desired channel- that will become the Incrementing channel!\r\ni!leaderboard - See the top ten contributors to the increasing on this server.\r\ni!global - See the global total of increasing.\r\n\r\nIf you like this Discord game, check out the VR version, \"Increment\"!", "Help"));
+                    await message.Channel.SendMessageAsync("", false, await BuildMessage($"Increase together forever! Players take turns typing the next number in sequence.\r\nCommands:\r\ni!help - Read this text.\r\ni!increment - An admin must type this in the desired channel- that will become the Incrementing channel!\r\ni!leaderboard - See the top ten contributors to the increasing on this server.\r\ni!global - See the global total of increasing.\r\n\r\nIf you like this Discord game, check out the VR version, [Increment]({STEAM_PAGE})!", "Help"));
                     break;
                 case "global":
                     int count = await GetGlobalCount();
