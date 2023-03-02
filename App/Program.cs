@@ -202,9 +202,14 @@ namespace IncrementBot
                     }*/
                     break;
                 case "increment":
-                    _state[guild].channel = message.Channel.Name;
-                    await message.Channel.SendMessageAsync("Channel set");
-                    await SaveState();
+                    var u = message.Author as SocketGuildUser;
+                    if(HasManageServerPermission(u)) {
+                        _state[guild].channel = message.Channel.Name;
+                        await message.Channel.SendMessageAsync("Channel set");
+                        await SaveState();
+                    } else {
+                        await message.Channel.SendMessageAsync("i dont think so");
+                    }
                     break;
                 case "help":
                     await message.Channel.SendMessageAsync("Increase together forever! Players take turns typing the next number in sequence.\r\nCommands:\r\ni!help - Read this text.\r\ni!increment - An admin must type this in the desired channel- that will become the Incrementing channel!\r\ni!leaderboard - See the top ten contributors to the increasing on this server.\r\ni!global - See the global total of increasing.\r\n\r\nIf you like this Discord game, check out the VR version, \"Increment\"!");
