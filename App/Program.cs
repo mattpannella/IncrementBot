@@ -170,9 +170,14 @@ namespace IncrementBot
                     }
                     break;
                 case "init":
-                    _state[guild].channel = message.Channel.Name;
-                    await message.Channel.SendMessageAsync("Channel set");
-                    await SaveState();
+                    var u = message.Author as SocketGuildUser;
+                    if(HasManageServerPermission(u)) {
+                        _state[guild].channel = message.Channel.Name;
+                        await message.Channel.SendMessageAsync("Channel set");
+                        await SaveState();
+                    } else {
+                        await message.Channel.SendMessageAsync("i dont think so");
+                    }
                     break;
                 case "help":
                     await message.Channel.SendMessageAsync("figure it out yourself");
