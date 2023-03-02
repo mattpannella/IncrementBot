@@ -7,3 +7,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: Inc-Bot
+    volumes:
+      - type: bind
+        source: ${STATE_DIR}/state.json
+        target: /App/state.json

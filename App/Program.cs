@@ -23,6 +23,8 @@ namespace IncrementBot
         private readonly DiscordSocketClient _client;
         private Dictionary<ulong, IncremementState> _state;
 
+        private const string STATE_FILE = "state.json";
+
         // Discord.Net heavily utilizes TAP for async, so we create
         // an asynchronous context from the beginning.
         static void Main(string[] args)
@@ -33,15 +35,17 @@ namespace IncrementBot
 
         public Program()
         {
-            string file = Environment.GetEnvironmentVariable("STATE");
-            if(File.Exists(file)) {
-                string json = File.ReadAllText(file);
+            if(File.Exists(STATE_FILE)) {
+                string json = File.ReadAllText(STATE_FILE);
                 _state = JsonSerializer.Deserialize<Dictionary<ulong, IncremementState>>(json);
                 if(_state == null) {
                     Console.WriteLine("Unable to parse state file");
                     _state = new Dictionary<ulong, IncremementState>();
+                } else {
+                    Console.WriteLine("Loaded state");
                 }
             } else {
+                Console.WriteLine("State file not found");
                 _state = new Dictionary<ulong, IncremementState>();
             }
 
@@ -278,12 +282,11 @@ namespace IncrementBot
 
         private async Task SaveState()
         {
-            string file = Environment.GetEnvironmentVariable("STATE");
-            if (file == null) {
+            if (STATE_FILE == null) {
                 return;
             }
             string json = JsonSerializer.Serialize(_state);
-            File.WriteAllText(file, json);
+            File.WriteAllText(STATE_FILE, json);
         }
     }
 }
