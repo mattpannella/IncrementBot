@@ -133,7 +133,7 @@ namespace IncrementBot
             var guild = chnl.Guild.Id;
             if (message.Author.Id == _state[guild].mostRecentUser) {
                 await message.AddReactionAsync(new Emoji("❌"));
-                await message.Channel.SendMessageAsync("It's some else's turn.");
+                await message.Channel.SendMessageAsync("It's someone else's turn.");
             } 
             else if(number == (_state[guild].count+1)) {
                 _state[guild].count++;
@@ -145,6 +145,23 @@ namespace IncrementBot
                 } else {
                     _state[guild].userTotals[userid]++;
                 }
+
+                //auto leaderboard display on 10 and multiples of 100
+                if(_state[guild].count == 10 || _state[guild].count % 100 == 0)
+                {
+                    await message.Channel.SendMessageAsync("An excellent milestone, let's see the leaderboard!");
+                    
+                    //ChatGPT's attempt at top ten
+                    var sortedUserTotals = _state[guild].userTotals.OrderByDescending(u => u.Value);
+                    var topTenUsers = sortedUserTotals.Take(10);
+                    foreach (var user in topTenUsers)
+                    {
+                        var discordUser = await _client.GetUserAsync(user.Key);
+                        var username = discordUser.Username + "#" + discordUser.Discriminator;
+                        await message.Channel.SendMessageAsync($"{username}: {user.Value}");
+                    }
+                }
+
                 await SaveState();
             } else {
                 //otherwise send the fail  message
@@ -158,27 +175,45 @@ namespace IncrementBot
             var chnl = message.Channel as SocketGuildChannel;
             var guild = chnl.Guild.Id;
             string command = message.Content.Split("i!")[1];
-            if(_state[guild].channel == "" && command != "init") {
+
+            //PIL - change "init" to "increment"
+            if(_state[guild].channel == "" && command != "increment") {
                 return;
             }
             switch(command) {
                 case "leaderboard":
+
+                    //ChatGPT's attempt at top ten
+                    var sortedUserTotals = _state[guild].userTotals.OrderByDescending(u => u.Value);
+                    var topTenUsers = sortedUserTotals.Take(10);
+                    foreach (var user in topTenUsers)
+                    {
+                        var discordUser = await _client.GetUserAsync(user.Key);
+                        var username = discordUser.Username + "#" + discordUser.Discriminator;
+                        await message.Channel.SendMessageAsync($"{username}: {user.Value}");
+                    }
+
+                    //Matt's full leaderboard
+                    /*
                     foreach (ulong key in _state[guild].userTotals.Keys) {
                         var user = _client.GetUserAsync(key).Result;
                         var Username = user.Username + "#" + user.Discriminator;
                         await message.Channel.SendMessageAsync(Username + ": " + _state[guild].userTotals[key]);
-                    }
+                    }*/
                     break;
-                case "init":
+                case "increment":
                     _state[guild].channel = message.Channel.Name;
                     await message.Channel.SendMessageAsync("Channel set");
                     await SaveState();
                     break;
                 case "help":
-                    await message.Channel.SendMessageAsync("figure it out yourself");
+                    await message.Channel.SendMessageAsync("Increase together forever! Players take turns typing the next number in sequence.\r\nCommands:\r\ni!help - Read this text.\r\ni!increment - An admin must type this in the desired channel- that will become the Incrementing channel!\r\ni!leaderboard - See the top ten contributors to the increasing on this server.\r\ni!global - See the global total of increasing.\r\n\r\nIf you like this Discord game, check out the VR version, \"Increment\"!");
+                    break;
+                case "global":
+                    await message.Channel.SendMessageAsync("There are increasers everywhere! They have increased globally by" + "???");
                     break;
                 default:
-                    await message.Channel.SendMessageAsync("i dont know what that means");
+                    await message.Channel.SendMessageAsync("Invalid command.");
                     break;
             }
         }
@@ -189,6 +224,7 @@ namespace IncrementBot
         {
             // safety-casting is the best way to prevent something being cast from being null.
             // If this check does not pass, it could not be cast to said type.
+            /*
             if (interaction is SocketMessageComponent component)
             {
                 // Check for the ID created in the button mentioned above.
@@ -197,21 +233,21 @@ namespace IncrementBot
 
                 else
                     Console.WriteLine("An ID has been received that has no handler!");
-            }
+            }*/
         }
 
-        private string GetRandomIncorrectResponse(int expectedCount)
+        private string GetRandomIncorrectResponse(int count)
         {
             string[] incorrectResponses = new string[] {
-                $"Nope, the next number is {expectedCount + 1}",
-                $"Sorry, it's not {expectedCount}, try {expectedCount + 1}",
-                $"That's a good number, but we're looking for {expectedCount + 1}",
-                $"Incorrect! The next number is {expectedCount + 1}",
-                $"Not quite, next number is {expectedCount + 1}",
-                $"Almost there, but not quite {expectedCount + 1}",
-                $"Try again! {expectedCount + 1} is the next number",
-                $"Better luck next time! {expectedCount + 1} is the correct number",
-                $"Nice try, but the next number is {expectedCount + 1}"
+                $"Nope, the next number is {count + 1}",
+                $"Sorry, that's a good number, but the previous number was {count}",
+                $"That's a good number, but I'm looking for {count + 1}",
+                $"One of my favorite numbers, but the next number is {count + 1}",
+                $"Not quite, the previous number was {count}",
+                $"Almost there, but not quite {count + 1}",
+                $"Try again! {count + 1} is the next number",
+                $"Better luck next time! {count + 1} is the correct number",
+                $"I wish, but the next number is {count + 1}"
             };
             return incorrectResponses[new Random().Next(incorrectResponses.Length)];
         }
