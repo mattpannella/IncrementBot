@@ -1,6 +1,6 @@
 services:
   inc-bot:
-    image: "ghcr.io/PilZero/increment_bot"
+    image: "ghcr.io/pilzero/increment_bot"
     build:
       context: .
       dockerfile: Dockerfile
