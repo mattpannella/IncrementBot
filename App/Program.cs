@@ -29,6 +29,8 @@ namespace IncrementBot
         private static Color INC_COLOR = new Color(1, 255, 253);
         private static string INC_LOGO = "https://images.squarespace-cdn.com/content/v1/623a01f4bb3fd3071ad90e32/7e2eb108-aec7-4356-a9ce-15d608c5e4f6/webLogo.jpg?format=500w";
         private static string STEAM_PAGE = "https://store.steampowered.com/app/1899820/Increment/";
+
+        private static string VERSION = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
         // Discord.Net heavily utilizes TAP for async, so we create
         // an asynchronous context from the beginning.
         static void Main(string[] args)
@@ -39,6 +41,7 @@ namespace IncrementBot
 
         public Program()
         {
+            Console.WriteLine("Increment Bot Version " + VERSION);
             if(File.Exists(STATE_FILE)) {
                 string json = File.ReadAllText(STATE_FILE);
                 _state = JsonSerializer.Deserialize<Dictionary<ulong, IncremementState>>(json);
