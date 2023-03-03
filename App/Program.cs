@@ -111,18 +111,10 @@ namespace IncrementBot
             }
 
             //check for leaderboard command. return afterwards
-            if (message.Content.StartsWith("i!")) {
+            if (message.Content.StartsWith("i!") || message.Content == "!help") {
                 await ParseCommand(message);
                 return;
             }
-            //allow commands without trying to count
-            //react to missed numbers, and same users. message to take turns
-            //top 10 only, sorted. single message
-            //i!help
-            //only one channel. admin needs to initialize count in channel to become counting channel
-            //save count and channel from admin command to external file and initialize
-
-            //stretch goal: multi server
 
             // The bot should never respond to itself. dont respond if same user twice in a row
             if (message.Channel.Name != _state[guild].channel) {
@@ -178,10 +170,15 @@ namespace IncrementBot
         {
             var chnl = message.Channel as SocketGuildChannel;
             var guild = chnl.Guild.Id;
-            string command = message.Content.Split("i!")[1];
+            string command;
+            if (message.Content == "!help") {
+                command = "help";
+            } else {
+                command = message.Content.Split("i!")[1];
+            }
 
             //PIL - change "init" to "increment"
-            if(_state[guild].channel == "" && command != "increment") {
+            if(_state[guild].channel == "" && (command != "increment" && command != "help")) {
                 return;
             }
             switch(command) {
