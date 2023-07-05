@@ -60,7 +60,8 @@ namespace IncrementBot
             // Define intents for the client
             var config = new DiscordSocketConfig
             {
-                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent
+                GatewayIntents = GatewayIntents.All,
+                AlwaysDownloadUsers = true
             };
 
             // It is recommended to Dispose of a client when you are finished
@@ -145,6 +146,12 @@ namespace IncrementBot
             else if(number == (_state[guild].count+1)) {
                 _state[guild].count++;
                 await message.AddReactionAsync(new Emoji("✅"));
+                if (number.ToString().Contains("69")) {
+                    await message.AddReactionAsync(new Emoji("N"));
+                    await message.AddReactionAsync(new Emoji("I"));
+                    await message.AddReactionAsync(new Emoji("C"));
+                    await message.AddReactionAsync(new Emoji("E"));
+                }
                 ulong userid = message.Author.Id;
                 _state[guild].mostRecentUser = message.Author.Id;
                 if(!_state[guild].userTotals.ContainsKey(userid)){
@@ -222,11 +229,13 @@ namespace IncrementBot
             int count = 1;
             foreach (var user in _state[guild].userTotals)
             {
-                var discordUser = await _client.GetUserAsync(user.Key);
-                var username = discordUser.Username + "#" + discordUser.Discriminator;
+                var fullUser = _client.GetGuild(guild).GetUser(user.Key);
+                var username = fullUser.DisplayName;
                 list.AppendLine($"**{count}**. {username}, {user.Value}");
                 count++;
             }
+            list.AppendLine("");
+            list.AppendLine($"If you like this Discord game, check out the VR version, [Increment]({STEAM_PAGE})!");
             builder.Description = list.ToString();
             //builder.WithUrl("https://www.incrementvr.com/");
             //builder.WithThumbnailUrl(INC_LOGO);
