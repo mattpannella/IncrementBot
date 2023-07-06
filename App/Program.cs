@@ -239,7 +239,7 @@ namespace IncrementBot
                 if (fullUser != null) {
                     username = fullUser.DisplayName;
                 }
-                list.AppendLine($"**{count}**. {username}, {user.Value}");
+                list.AppendLine($"**{count}**. {Format.Sanitize(username)}, {user.Value}");
                 count++;
             }
             list.AppendLine("");
