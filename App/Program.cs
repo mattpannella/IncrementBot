@@ -213,6 +213,10 @@ namespace IncrementBot
                     int count = await GetGlobalCount();
                     await message.Channel.SendMessageAsync("", false, await BuildMessage($"There are increasers everywhere! They have increased globally by {count}", "Global Total"));
                     break;
+              //  case "globalboard":
+                //        Embed globalboard = await GetGlobalLeaderBoard();
+                  //      await message.Channel.SendMessageAsync("", false, globalboard);
+                    //break;
                 default:
                     await message.Channel.SendMessageAsync("", false, await BuildMessage("Invalid command."));
                     break;
@@ -287,6 +291,32 @@ namespace IncrementBot
             var topTenSorted = _state[guild].userTotals.OrderByDescending(u => u.Value).Take(10)
                      .ToDictionary(u => u.Key, u => u.Value);
             _state[guild].userTotals = topTenSorted;
+        }
+
+        private async Task<Embed> GetGlobalLeaderBoard()
+        {
+            await SortGlobalLeaderboard();
+            EmbedBuilder builder = new EmbedBuilder();
+
+            builder.WithTitle("Top Incremental Servers");
+            StringBuilder list = new StringBuilder();
+            int count = 1;
+            foreach (var s in _state)
+            {
+                var guild = _client.GetGuild(s.Key);
+                list.AppendLine($"{guild.Name}, {s.Value.count}");
+                count++;
+            }
+            list.AppendLine("");
+            list.AppendLine($"If you like this Discord game, check out the VR version, [Increment]({STEAM_PAGE})!");
+            builder.Description = list.ToString();
+            builder.WithColor(INC_COLOR);
+            return builder.Build();
+        }
+
+        private async Task SortGlobalLeaderboard()
+        {
+            
         }
 
         // For better functionality & a more developer-friendly approach to handling any kind of interaction, refer to:
