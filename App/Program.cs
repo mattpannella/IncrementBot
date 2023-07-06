@@ -229,16 +229,18 @@ namespace IncrementBot
             int count = 1;
             foreach (var user in _state[guild].userTotals)
             {
+                var discordUser = await _client.GetUserAsync(user.Key);
+                var username = discordUser.Username;
                 var fullUser = _client.GetGuild(guild).GetUser(user.Key);
-                var username = fullUser.DisplayName;
+                if (fullUser != null) {
+                    username = fullUser.DisplayName;
+                }
                 list.AppendLine($"**{count}**. {username}, {user.Value}");
                 count++;
             }
             list.AppendLine("");
             list.AppendLine($"If you like this Discord game, check out the VR version, [Increment]({STEAM_PAGE})!");
             builder.Description = list.ToString();
-            //builder.WithUrl("https://www.incrementvr.com/");
-            //builder.WithThumbnailUrl(INC_LOGO);
             builder.WithColor(INC_COLOR);
             return builder.Build();
         }
